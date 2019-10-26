@@ -11,9 +11,9 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/pingcap/goleveldb/leveldb/iterator"
-	"github.com/pingcap/goleveldb/leveldb/opt"
-	"github.com/pingcap/goleveldb/leveldb/util"
+	"github.com/5kbpers/goleveldb/leveldb/iterator"
+	"github.com/5kbpers/goleveldb/leveldb/opt"
+	"github.com/5kbpers/goleveldb/leveldb/util"
 )
 
 type tSet struct {

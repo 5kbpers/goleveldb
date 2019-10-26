@@ -16,9 +16,9 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/pingcap/goleveldb/leveldb/iterator"
-	"github.com/pingcap/goleveldb/leveldb/opt"
-	"github.com/pingcap/goleveldb/leveldb/storage"
+	"github.com/5kbpers/goleveldb/leveldb/iterator"
+	"github.com/5kbpers/goleveldb/leveldb/opt"
+	"github.com/5kbpers/goleveldb/leveldb/storage"
 )
 
 func randomString(r *rand.Rand, n int) []byte {

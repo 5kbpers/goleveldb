@@ -12,9 +12,9 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"github.com/pingcap/goleveldb/leveldb/errors"
-	"github.com/pingcap/goleveldb/leveldb/iterator"
-	"github.com/pingcap/goleveldb/leveldb/util"
+	"github.com/5kbpers/goleveldb/leveldb/errors"
+	"github.com/5kbpers/goleveldb/leveldb/iterator"
+	"github.com/5kbpers/goleveldb/leveldb/util"
 )
 
 type DB interface{}

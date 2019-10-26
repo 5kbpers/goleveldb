@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/pingcap/goleveldb/leveldb/comparer"
+	"github.com/5kbpers/goleveldb/leveldb/comparer"
 )
 
 func BenchmarkPut(b *testing.B) {
