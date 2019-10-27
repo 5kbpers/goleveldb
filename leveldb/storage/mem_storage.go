@@ -32,15 +32,44 @@ func (lock *memStorageLock) Unlock() {
 type memStorage struct {
 	mu    sync.Mutex
 	slock *memStorageLock
-	files map[uint64]*memFile
+	files map[uint64]*IndexedDBFile
 	meta  FileDesc
 }
 
 // NewMemStorage returns a new memory-backed storage implementation.
 func NewMemStorage() Storage {
-	return &memStorage{
-		files: make(map[uint64]*memFile),
+	ms := &memStorage{
+		files: make(map[uint64]*IndexedDBFile),
 	}
+	//manifestName := FileDesc{
+	//	Type: TypeManifest,
+	//	Num:  0,
+	//}
+	//
+	//err := IsExisted("tidb", "file", manifestName.String())
+	//if err == nil {
+	//	m, err := Open("tidb", "file", manifestName.String())
+	//	if err != nil {
+	//		return nil
+	//	}
+	//	ms.files[packFile(manifestName)] = m
+	//	ms.meta = manifestName
+	//}
+	//
+	//journalName := FileDesc{
+	//	Type: TypeJournal,
+	//	Num:  1,
+	//}
+	//err = IsExisted("tidb", "file", journalName.String())
+	//if err == nil {
+	//	_, err := Open("tidb", "file", journalName.String())
+	//	if err != nil {
+	//		return nil
+	//	}
+	//	ms.files[packFile(journalName)] = m
+	//}
+	//
+	return ms
 }
 
 func (ms *memStorage) Lock() (Locker, error) {
@@ -69,6 +98,7 @@ func (ms *memStorage) SetMeta(fd FileDesc) error {
 func (ms *memStorage) GetMeta() (FileDesc, error) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
+
 	if ms.meta.Zero() {
 		return FileDesc{}, os.ErrNotExist
 	}
@@ -100,7 +130,21 @@ func (ms *memStorage) Open(fd FileDesc) (Reader, error) {
 			return nil, errFileOpen
 		}
 		m.open = true
-		return &memReader{Reader: bytes.NewReader(m.Bytes()), ms: ms, m: m}, nil
+		return &memReader{Reader: m.Reader(), ms: ms, m: m}, nil
+	} else {
+		err := IsExisted("tidb", "file", fd.String())
+		if err != nil {
+			return nil, os.ErrNotExist
+		}
+
+		m, err = Open("tidb", "file", fd.String())
+		if err != nil {
+			return nil, err
+		}
+
+		m.open = true
+		ms.files[packFile(fd)] = m
+		return &memReader{Reader: m.Reader(), ms: ms, m: m}, nil
 	}
 	return nil, os.ErrNotExist
 }
@@ -118,13 +162,17 @@ func (ms *memStorage) Create(fd FileDesc) (Writer, error) {
 		if m.open {
 			return nil, errFileOpen
 		}
-		m.Reset()
+		m.buff.Reset()
 	} else {
-		m = &memFile{}
+		var err error
+		m, err = Open("tidb", "file", fd.String())
+		if err != nil {
+			return nil, err
+		}
 		ms.files[x] = m
 	}
 	m.open = true
-	return &memWriter{memFile: m, ms: ms}, nil
+	return &memWriter{IndexedDBFile: m, ms: ms}, nil
 }
 
 func (ms *memStorage) Remove(fd FileDesc) error {
@@ -167,7 +215,16 @@ func (ms *memStorage) Rename(oldfd, newfd FileDesc) error {
 	return nil
 }
 
-func (*memStorage) Close() error { return nil }
+func (ms *memStorage) Close() error {
+	var err error
+	for _, v := range ms.files {
+		er := v.Close()
+		if er != nil {
+			err = er
+		}
+	}
+	return err
+}
 
 type memFile struct {
 	bytes.Buffer
@@ -177,7 +234,7 @@ type memFile struct {
 type memReader struct {
 	*bytes.Reader
 	ms     *memStorage
-	m      *memFile
+	m      *IndexedDBFile
 	closed bool
 }
 
@@ -192,12 +249,14 @@ func (mr *memReader) Close() error {
 }
 
 type memWriter struct {
-	*memFile
+	*IndexedDBFile
 	ms     *memStorage
 	closed bool
 }
 
-func (*memWriter) Sync() error { return nil }
+func (mw *memWriter) Sync() error {
+	return mw.IndexedDBFile.Sync()
+}
 
 func (mw *memWriter) Close() error {
 	mw.ms.mu.Lock()
@@ -205,8 +264,9 @@ func (mw *memWriter) Close() error {
 	if mw.closed {
 		return ErrClosed
 	}
-	mw.memFile.open = false
-	return nil
+	mw.IndexedDBFile.open = false
+	err := mw.IndexedDBFile.Close()
+	return err
 }
 
 func packFile(fd FileDesc) uint64 {
